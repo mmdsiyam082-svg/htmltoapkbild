@@ -213,93 +213,79 @@ def ensure_banner():
 
 
 # =========================================================
-# KEYBOARDS
+# KEYBOARDS — PROFESSIONAL REPLY KEYBOARD
 # =========================================================
 
-def kb_main_menu():
-    """
-    Telegram Reply Keyboard:
-    2 columns × 3 rows = 6 professional menu buttons.
-    Telegram itself does not allow custom button background colors or bold
-    text on ReplyKeyboard buttons, so colored emojis are used for visual
-    status/action grouping.
-    """
-    kb = types.ReplyKeyboardMarkup(
+# Telegram now supports ReplyKeyboard button styles: primary (blue),
+# success (green) and danger (red). This requires a recent pyTelegramBotAPI.
+# The fallback keeps the bot usable if an older library is installed.
+
+def KB(text, style="primary"):
+    try:
+        return types.KeyboardButton(text, style=style)
+    except TypeError:
+        return types.KeyboardButton(text)
+
+
+def SC(text):
+    # Keep button labels in one place so they can be changed later easily.
+    return text
+
+
+def make_keyboard(rows, placeholder="Choose an option…"):
+    markup = types.ReplyKeyboardMarkup(
         resize_keyboard=True,
         one_time_keyboard=False,
         row_width=2,
-        input_field_placeholder="Choose an option…"
+        input_field_placeholder=placeholder
     )
 
-    kb.row(
-        "🟢 Create APK",
-        "🔵 How it works"
-    )
-    kb.row(
-        "ℹ️ About",
-        "🆕 New Build"
-    )
-    kb.row(
-        "🏠 Home",
-        "🛟 Support"
-    )
+    for row in rows:
+        markup.row(*[KB(text, style) for text, style in row])
 
-    return kb
+    return markup
+
+
+def kb_main_menu():
+    # No Home/Main Menu button here: this IS the main menu.
+    return make_keyboard([
+        [(SC("🚀 Create APK"), "success"),
+         (SC("📘 How it works"), "primary")],
+        [(SC("📦 Package Guide"), "primary"),
+         (SC("🔐 Permission Guide"), "primary")],
+        [(SC("ℹ️ About"), "primary"),
+         (SC("🛟 Support"), "success")],
+    ], "Select an option…")
 
 
 def kb_cancel():
-    kb = types.ReplyKeyboardMarkup(
-        resize_keyboard=True,
-        one_time_keyboard=False,
-        row_width=2,
-        input_field_placeholder="Choose an option…"
-    )
-    kb.row(
-        "🔴 Cancel",
-        "🏠 Home"
-    )
-    return kb
+    # During data entry, only Cancel is shown. No duplicate Main Menu button.
+    return make_keyboard([
+        [(SC("🔴 Cancel"), "danger")],
+    ], "Send the requested information…")
 
 
 def kb_confirm():
-    kb = types.ReplyKeyboardMarkup(
-        resize_keyboard=True,
-        one_time_keyboard=False,
-        row_width=2,
-        input_field_placeholder="Review your build…"
-    )
-    kb.row(
-        "🟢 Build APK",
-        "✏️ Rename"
-    )
-    kb.row(
-        "📦 Package",
-        "🔐 Permissions"
-    )
-    kb.row(
-        "🔴 Cancel",
-        "🏠 Home"
-    )
-    return kb
+    return make_keyboard([
+        [(SC("🟢 Build APK"), "success"),
+         (SC("✏️ Rename"), "primary")],
+        [(SC("📦 Package"), "primary"),
+         (SC("🔐 Permissions"), "primary")],
+        [(SC("🔴 Cancel"), "danger")],
+    ], "Review your APK settings…")
 
 
 def kb_permission_info():
-    kb = types.ReplyKeyboardMarkup(
-        resize_keyboard=True,
-        one_time_keyboard=False,
-        row_width=2
-    )
-    kb.row(
-        "⬅️ Back to Review",
-        "🔴 Cancel"
-    )
-    kb.row("🏠 Home")
-    return kb
+    return make_keyboard([
+        [(SC("⬅️ Back to Review"), "primary"),
+         (SC("🔴 Cancel"), "danger")],
+    ], "Choose an action…")
 
 
 # =========================================================
 # PROGRESS
 # =========================================================
+
 
 def progress(step, label):
 
@@ -901,246 +887,89 @@ def start_flow(
 
 
 # =========================================================
-# CALLBACKS
+# LEGACY CALLBACK COMPATIBILITY
 # =========================================================
+# Old inline-keyboard messages may still exist in a user's chat. These
+# handlers no longer try to edit a message using ReplyKeyboardMarkup.
+# They simply move the user into the new reply-keyboard flow.
 
-@bot.callback_query_handler(
-    func=lambda c: c.data == "menu:new"
-)
+@bot.callback_query_handler(func=lambda c: c.data == "menu:new")
 def cb_new(call):
-
     bot.answer_callback_query(call.id)
-
-    start_flow(
-        call.message.chat.id,
-        call.message
-    )
+    start_flow(call.message.chat.id)
 
 
-@bot.callback_query_handler(
-    func=lambda c: c.data == "menu:home"
-)
+@bot.callback_query_handler(func=lambda c: c.data in ("menu:help", "menu:about"))
+def cb_info(call):
+    bot.answer_callback_query(call.id)
+    chat_id = call.message.chat.id
+    if call.data == "menu:help":
+        bot.send_message(chat_id, HELP_TEXT, reply_markup=kb_main_menu())
+    else:
+        bot.send_message(chat_id, ABOUT_TEXT, reply_markup=kb_main_menu())
+
+
+@bot.callback_query_handler(func=lambda c: c.data == "menu:home")
 def cb_home(call):
-
     bot.answer_callback_query(call.id)
-
-    reset(
-        call.message.chat.id
-    )
-
-    text = (
-        "<b>🚀 APK Converter Studio</b>\n\n"
-        "Choose an option below:"
-    )
-
-    edit_ui_message(
-        call.message,
-        text,
-        kb_main_menu()
-    )
+    reset(call.message.chat.id)
+    send_home(call.message.chat.id)
 
 
-@bot.callback_query_handler(
-    func=lambda c: c.data == "menu:help"
-)
-def cb_help(call):
-
-    bot.answer_callback_query(call.id)
-
-    edit_ui_message(
-        call.message,
-        HELP_TEXT,
-        kb_main_menu()
-    )
-
-
-@bot.callback_query_handler(
-    func=lambda c: c.data == "menu:about"
-)
-def cb_about(call):
-
-    bot.answer_callback_query(call.id)
-
-    edit_ui_message(
-        call.message,
-        ABOUT_TEXT,
-        kb_main_menu()
-    )
-
-
-@bot.callback_query_handler(
-    func=lambda c: c.data == "permission:info"
-)
+@bot.callback_query_handler(func=lambda c: c.data == "permission:info")
 def cb_permission_info(call):
-
-    chat_id = call.message.chat.id
-
-    session = sessions.get(chat_id)
-
-    if not session:
-
-        bot.answer_callback_query(
-            call.id,
-            "Session expired."
-        )
-
-        return
-
     bot.answer_callback_query(call.id)
-
-    permissions = session.get(
-        "permissions",
-        []
-    )
-
-    text = permission_text(
-        permissions
-    )
-
-    kb = kb_permission_info()
-
-    edit_ui_message(
-        call.message,
-        text,
-        kb
-    )
+    chat_id = call.message.chat.id
+    session = sessions.get(chat_id)
+    if not session:
+        bot.send_message(chat_id, "⚠️ Session expired.\n\nStart a new build from the main menu.", reply_markup=kb_main_menu())
+        return
+    bot.send_message(chat_id, permission_text(session.get("permissions", [])), reply_markup=kb_permission_info())
 
 
-@bot.callback_query_handler(
-    func=lambda c: c.data == "flow:review"
-)
+@bot.callback_query_handler(func=lambda c: c.data == "flow:review")
 def cb_review(call):
-
-    chat_id = call.message.chat.id
-
-    if chat_id not in sessions:
-
-        bot.answer_callback_query(
-            call.id,
-            "Session expired."
-        )
-
-        return
-
     bot.answer_callback_query(call.id)
-
-    show_confirmation(
-        chat_id,
-        call.message
-    )
+    show_confirmation(call.message.chat.id)
 
 
-@bot.callback_query_handler(
-    func=lambda c: c.data == "flow:cancel"
-)
+@bot.callback_query_handler(func=lambda c: c.data == "flow:cancel")
 def cb_cancel(call):
-
-    chat_id = call.message.chat.id
-
-    reset(chat_id)
-
-    bot.answer_callback_query(
-        call.id,
-        "Cancelled"
-    )
-
-    edit_ui_message(
-        call.message,
-        "✖️ <b>Cancelled</b>\n\nChoose an action below:",
-        kb_main_menu()
-    )
+    bot.answer_callback_query(call.id, "Cancelled")
+    reset(call.message.chat.id)
+    bot.send_message(call.message.chat.id, "🔴 <b>Build cancelled.</b>\n\nChoose an option from the main menu.", reply_markup=kb_main_menu())
 
 
-@bot.callback_query_handler(
-    func=lambda c: c.data == "flow:rename"
-)
+@bot.callback_query_handler(func=lambda c: c.data == "flow:rename")
 def cb_rename(call):
-
-    chat_id = call.message.chat.id
-
-    session = sessions.get(chat_id)
-
-    if not session:
-
-        bot.answer_callback_query(
-            call.id,
-            "Session expired."
-        )
-
-        return
-
     bot.answer_callback_query(call.id)
-
-    session["state"] = "app_name"
-
-    session["ui_message"] = call.message
-
-    edit_ui_message(
-        call.message,
-        progress(0, "App name") +
-        "\n📛 <b>Send the new App Name</b>",
-        kb_cancel()
-    )
-
-
-@bot.callback_query_handler(
-    func=lambda c: c.data == "flow:build"
-)
-def cb_build(call):
-
     chat_id = call.message.chat.id
-
     session = sessions.get(chat_id)
-
     if not session:
-
-        bot.answer_callback_query(
-            call.id,
-            "Session expired."
-        )
-
+        bot.send_message(chat_id, "⚠️ Session expired.\n\nStart a new build.", reply_markup=kb_main_menu())
         return
+    session["state"] = "app_name"
+    bot.send_message(chat_id, progress(0, "App name") + "\n📛 <b>Send the new App Name</b>", reply_markup=kb_cancel())
 
-    required = [
-        "app_name",
-        "package_name",
-        "icon",
-        "html"
-    ]
 
-    if not all(
-        key in session
-        for key in required
-    ):
-
-        bot.answer_callback_query(
-            call.id,
-            "Some information is missing."
-        )
-
+@bot.callback_query_handler(func=lambda c: c.data == "flow:build")
+def cb_build(call):
+    bot.answer_callback_query(call.id)
+    chat_id = call.message.chat.id
+    session = sessions.get(chat_id)
+    if not session:
+        bot.send_message(chat_id, "⚠️ Session expired.", reply_markup=kb_main_menu())
         return
-
-    bot.answer_callback_query(
-        call.id,
-        "Build started"
-    )
-
+    required = ["app_name", "package_name", "icon", "html"]
+    if not all(key in session for key in required):
+        bot.send_message(chat_id, "⚠️ <b>Some build information is missing.</b>", reply_markup=kb_main_menu())
+        return
     session["state"] = "building"
-    session["ui_message"] = call.message
-
-    edit_ui_message(
-        call.message,
-        progress(5, "Build") +
-        "\n⚙️ <b>Preparing APK build…</b>\n\n"
-        "Please wait.",
-        None
+    session["ui_message"] = bot.send_message(
+        chat_id,
+        progress(5, "Build") + "\n⚙️ <b>Preparing APK build…</b>\n\nPlease wait."
     )
-
-    threading.Thread(
-        target=build_apk,
-        args=(chat_id,),
-        daemon=True
-    ).start()
+    threading.Thread(target=build_apk, args=(chat_id,), daemon=True).start()
 
 
 # =========================================================
@@ -1200,16 +1029,16 @@ def cmd_newapk(message):
 
 
 # =========================================================
-# REPLY KEYBOARD MENU ROUTER
+# REPLY KEYBOARD ACTION ROUTER
 # =========================================================
 
 @bot.message_handler(
     func=lambda m: (m.text or "").strip() in {
-        "🟢 Create APK",
-        "🆕 New Build",
+        "🚀 Create APK",
         "📘 How it works",
+        "📦 Package Guide",
+        "🔐 Permission Guide",
         "ℹ️ About",
-        "🏠 Home",
         "🛟 Support",
         "🔴 Cancel",
         "🟢 Build APK",
@@ -1224,32 +1053,56 @@ def handle_reply_keyboard(message):
     chat_id = message.chat.id
     action = (message.text or "").strip()
 
-    # If a user taps Home from any active flow, leave the current flow cleanly.
-    if action == "🏠 Home":
-        reset(chat_id)
-        send_home(chat_id)
-        return
-
-    if action in ("🟢 Create APK", "🆕 New Build"):
+    # Main menu actions -------------------------------------------------
+    if action == "🚀 Create APK":
         start_flow(chat_id)
         return
 
     if action == "📘 How it works":
         reset(chat_id)
+        bot.send_message(chat_id, HELP_TEXT, reply_markup=kb_main_menu())
+        return
+
+    if action == "📦 Package Guide":
+        reset(chat_id)
         bot.send_message(
             chat_id,
-            HELP_TEXT,
+            "<b>📦 Package Name Guide</b>\n"
+            "━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            "A package name uniquely identifies your Android app.\n\n"
+            "<b>Format:</b>\n"
+            "<code>com.example.myapp</code>\n\n"
+            "<b>Rules:</b>\n"
+            "• Use lowercase letters\n"
+            "• Use numbers when needed\n"
+            "• Use dots to separate sections\n"
+            "• Keep it unique for your project\n\n"
+            "<b>Example:</b> <code>com.devcloud.websiteapp</code>",
+            reply_markup=kb_main_menu()
+        )
+        return
+
+    if action == "🔐 Permission Guide":
+        reset(chat_id)
+        bot.send_message(
+            chat_id,
+            "<b>🔐 Permission Guide</b>\n"
+            "━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            "The builder scans your website files for common Android capabilities.\n\n"
+            "🌐 Internet — network requests / external resources\n"
+            "📷 Camera — camera-related browser APIs\n"
+            "🎙️ Microphone — audio capture APIs\n"
+            "📍 Location — browser geolocation APIs\n"
+            "🔔 Notifications — notification-related web APIs\n\n"
+            "Only detected capabilities are included in the build configuration.\n\n"
+            "⚠️ Detection is automatic and may depend on the code used by your website.",
             reply_markup=kb_main_menu()
         )
         return
 
     if action == "ℹ️ About":
         reset(chat_id)
-        bot.send_message(
-            chat_id,
-            ABOUT_TEXT,
-            reply_markup=kb_main_menu()
-        )
+        bot.send_message(chat_id, ABOUT_TEXT, reply_markup=kb_main_menu())
         return
 
     if action == "🛟 Support":
@@ -1265,47 +1118,45 @@ def handle_reply_keyboard(message):
             support_text = (
                 "<b>🛟 Support Center</b>\n"
                 "━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-                "Need help? Please contact the bot administrator."
+                "Need help with APK building?\n\n"
+                "Please contact the bot administrator."
             )
-
-        bot.send_message(
-            chat_id,
-            support_text,
-            reply_markup=kb_main_menu()
-        )
+        bot.send_message(chat_id, support_text, reply_markup=kb_main_menu())
         return
 
-    # These actions are only meaningful during the review/build flow.
-    session = sessions.get(chat_id)
-
+    # Flow actions ------------------------------------------------------
     if action == "🔴 Cancel":
         reset(chat_id)
         bot.send_message(
             chat_id,
             "🔴 <b>Build cancelled.</b>\n\n"
-            "Choose another option below.",
+            "Your current build session has been cleared.\n"
+            "Choose <b>🚀 Create APK</b> to start again.",
             reply_markup=kb_main_menu()
         )
         return
+
+    session = sessions.get(chat_id)
 
     if not session:
         bot.send_message(
             chat_id,
             "ℹ️ <b>No active build session.</b>\n\n"
-            "Choose <b>🟢 Create APK</b> to start a new build.",
+            "Choose <b>🚀 Create APK</b> to start a new build.",
             reply_markup=kb_main_menu()
         )
         return
 
     if action == "🟢 Build APK":
         required = ["app_name", "package_name", "icon", "html"]
-
         if not all(key in session for key in required):
             bot.send_message(
                 chat_id,
-                "⚠️ <b>Some build information is missing.</b>",
+                "⚠️ <b>Some build information is missing.</b>\n\n"
+                "Please restart the build and complete every step.",
                 reply_markup=kb_main_menu()
             )
+            reset(chat_id)
             return
 
         session["state"] = "building"
@@ -1313,8 +1164,7 @@ def handle_reply_keyboard(message):
             chat_id,
             progress(5, "Build") +
             "\n⚙️ <b>Preparing APK build…</b>\n\n"
-            "Please wait.",
-            reply_markup=None
+            "Please wait while the builder processes your project."
         )
 
         threading.Thread(
@@ -1329,7 +1179,8 @@ def handle_reply_keyboard(message):
         bot.send_message(
             chat_id,
             progress(0, "App name") +
-            "\n📛 <b>Send the new App Name</b>",
+            "\n📛 <b>Send the new App Name</b>\n\n"
+            "Example: <code>My Website App</code>",
             reply_markup=kb_cancel()
         )
         return
@@ -1339,18 +1190,16 @@ def handle_reply_keyboard(message):
         bot.send_message(
             chat_id,
             progress(1, "Package name") +
-            "\n📦 <b>Send new Package Name</b>\n\n"
-            "Example:\n"
-            "<code>com.example.myapp</code>",
+            "\n📦 <b>Send the new Package Name</b>\n\n"
+            "Example: <code>com.example.myapp</code>",
             reply_markup=kb_cancel()
         )
         return
 
     if action == "🔐 Permissions":
-        permissions = session.get("permissions", [])
         bot.send_message(
             chat_id,
-            permission_text(permissions),
+            permission_text(session.get("permissions", [])),
             reply_markup=kb_permission_info()
         )
         return
@@ -1906,21 +1755,14 @@ def show_confirmation(
 
     kb = kb_confirm()
 
-    if source:
-
-        edit_ui_message(
-            source,
-            text,
-            kb
-        )
-
-    else:
-
-        bot.send_message(
-            chat_id,
-            text,
-            reply_markup=kb
-        )
+    # Reply keyboards belong to outgoing chat messages; they are not inline
+    # message markup. Always send a fresh review message so Telegram clients
+    # reliably receive the current keyboard.
+    bot.send_message(
+        chat_id,
+        text,
+        reply_markup=kb
+    )
 
 
 # =========================================================
