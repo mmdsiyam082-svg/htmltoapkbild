@@ -217,87 +217,83 @@ def ensure_banner():
 # =========================================================
 
 def kb_main_menu():
-
-    kb = types.InlineKeyboardMarkup(row_width=2)
-
-    kb.add(
-        types.InlineKeyboardButton(
-            "🚀 Create APK",
-            callback_data="menu:new"
-        )
+    """
+    Telegram Reply Keyboard:
+    2 columns × 3 rows = 6 professional menu buttons.
+    Telegram itself does not allow custom button background colors or bold
+    text on ReplyKeyboard buttons, so colored emojis are used for visual
+    status/action grouping.
+    """
+    kb = types.ReplyKeyboardMarkup(
+        resize_keyboard=True,
+        one_time_keyboard=False,
+        row_width=2,
+        input_field_placeholder="Choose an option…"
     )
 
-    kb.add(
-        types.InlineKeyboardButton(
-            "📘 How it works",
-            callback_data="menu:help"
-        ),
-        types.InlineKeyboardButton(
-            "ℹ️ About",
-            callback_data="menu:about"
-        )
+    kb.row(
+        "🟢 Create APK",
+        "🔵 How it works"
+    )
+    kb.row(
+        "ℹ️ About",
+        "🆕 New Build"
+    )
+    kb.row(
+        "🏠 Home",
+        "🛟 Support"
     )
 
     return kb
 
 
 def kb_cancel():
-
-    kb = types.InlineKeyboardMarkup()
-
-    kb.add(
-        types.InlineKeyboardButton(
-            "✖️ Cancel",
-            callback_data="flow:cancel"
-        )
+    kb = types.ReplyKeyboardMarkup(
+        resize_keyboard=True,
+        one_time_keyboard=False,
+        row_width=2,
+        input_field_placeholder="Choose an option…"
     )
-
+    kb.row(
+        "🔴 Cancel",
+        "🏠 Home"
+    )
     return kb
 
 
 def kb_confirm():
-
-    kb = types.InlineKeyboardMarkup(row_width=2)
-
-    kb.add(
-        types.InlineKeyboardButton(
-            "✅ Build APK",
-            callback_data="flow:build"
-        ),
-        types.InlineKeyboardButton(
-            "✏️ Rename",
-            callback_data="flow:rename"
-        )
+    kb = types.ReplyKeyboardMarkup(
+        resize_keyboard=True,
+        one_time_keyboard=False,
+        row_width=2,
+        input_field_placeholder="Review your build…"
     )
-
-    kb.add(
-        types.InlineKeyboardButton(
-            "✖️ Cancel",
-            callback_data="flow:cancel"
-        )
+    kb.row(
+        "🟢 Build APK",
+        "✏️ Rename"
     )
-
+    kb.row(
+        "📦 Package",
+        "🔐 Permissions"
+    )
+    kb.row(
+        "🔴 Cancel",
+        "🏠 Home"
+    )
     return kb
 
 
 def kb_permission_info():
-
-    kb = types.InlineKeyboardMarkup()
-
-    kb.add(
-        types.InlineKeyboardButton(
-            "🔐 Permission Details",
-            callback_data="permission:info"
-        )
+    kb = types.ReplyKeyboardMarkup(
+        resize_keyboard=True,
+        one_time_keyboard=False,
+        row_width=2
     )
-
-    kb.add(
-        types.InlineKeyboardButton(
-            "✖️ Cancel",
-            callback_data="flow:cancel"
-        )
+    kb.row(
+        "⬅️ Back to Review",
+        "🔴 Cancel"
     )
-
+    kb.row("🏠 Home")
     return kb
 
 
@@ -505,19 +501,19 @@ def already_processed(message):
 def send_home(chat_id):
 
     text = (
-        "<b>APK Converter Studio</b>\n"
-        "━━━━━━━━━━━━━━━━━━\n"
-        "🌐 Website → 📱 Android APK\n\n"
-        "Create a test APK from your HTML website.\n\n"
-        "<b>Features</b>\n"
-        "• App name\n"
-        "• Custom package name\n"
-        "• Custom icon\n"
-        "• HTML / HTM / ZIP\n"
+        "<b>🚀 APK CONVERTER STUDIO</b>\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        "🌐 Website  →  📱 Android APK\n\n"
+        "<b>Build a clean Android test APK from your website.</b>\n\n"
+        "✨ <b>Features</b>\n"
+        "• Custom App Name & Package\n"
+        "• PNG / JPEG App Icon\n"
+        "• HTML / HTM / ZIP Website\n"
         "• Automatic permission detection\n"
         "• Minimal Android permissions\n"
-        "• APK build\n\n"
-        "<i>Fast • Clean • Test-build ready</i>"
+        "• Animated APK build status\n\n"
+        "⚡ <i>Fast • Clean • Professional</i>\n\n"
+        "<b>👇 Choose an option below</b>"
     )
 
     if os.path.exists(BANNER_PATH):
@@ -933,8 +929,8 @@ def cb_home(call):
     )
 
     text = (
-        "<b>APK Converter Studio</b>\n\n"
-        "Choose an action below:"
+        "<b>🚀 APK Converter Studio</b>\n\n"
+        "Choose an option below:"
     )
 
     edit_ui_message(
@@ -1001,14 +997,7 @@ def cb_permission_info(call):
         permissions
     )
 
-    kb = types.InlineKeyboardMarkup()
-
-    kb.add(
-        types.InlineKeyboardButton(
-            "⬅️ Back to Review",
-            callback_data="flow:review"
-        )
-    )
+    kb = kb_permission_info()
 
     edit_ui_message(
         call.message,
@@ -1208,6 +1197,167 @@ def cmd_newapk(message):
     start_flow(
         message.chat.id
     )
+
+
+# =========================================================
+# REPLY KEYBOARD MENU ROUTER
+# =========================================================
+
+@bot.message_handler(
+    func=lambda m: (m.text or "").strip() in {
+        "🟢 Create APK",
+        "🆕 New Build",
+        "📘 How it works",
+        "ℹ️ About",
+        "🏠 Home",
+        "🛟 Support",
+        "🔴 Cancel",
+        "🟢 Build APK",
+        "✏️ Rename",
+        "📦 Package",
+        "🔐 Permissions",
+        "⬅️ Back to Review",
+    },
+    content_types=["text"]
+)
+def handle_reply_keyboard(message):
+    chat_id = message.chat.id
+    action = (message.text or "").strip()
+
+    # If a user taps Home from any active flow, leave the current flow cleanly.
+    if action == "🏠 Home":
+        reset(chat_id)
+        send_home(chat_id)
+        return
+
+    if action in ("🟢 Create APK", "🆕 New Build"):
+        start_flow(chat_id)
+        return
+
+    if action == "📘 How it works":
+        reset(chat_id)
+        bot.send_message(
+            chat_id,
+            HELP_TEXT,
+            reply_markup=kb_main_menu()
+        )
+        return
+
+    if action == "ℹ️ About":
+        reset(chat_id)
+        bot.send_message(
+            chat_id,
+            ABOUT_TEXT,
+            reply_markup=kb_main_menu()
+        )
+        return
+
+    if action == "🛟 Support":
+        support = os.environ.get("SUPPORT_USERNAME", "").strip()
+        if support:
+            support_text = (
+                "<b>🛟 Support Center</b>\n"
+                "━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+                "Need help with APK building?\n\n"
+                f"👤 Support: <b>{escape(support)}</b>"
+            )
+        else:
+            support_text = (
+                "<b>🛟 Support Center</b>\n"
+                "━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+                "Need help? Please contact the bot administrator."
+            )
+
+        bot.send_message(
+            chat_id,
+            support_text,
+            reply_markup=kb_main_menu()
+        )
+        return
+
+    # These actions are only meaningful during the review/build flow.
+    session = sessions.get(chat_id)
+
+    if action == "🔴 Cancel":
+        reset(chat_id)
+        bot.send_message(
+            chat_id,
+            "🔴 <b>Build cancelled.</b>\n\n"
+            "Choose another option below.",
+            reply_markup=kb_main_menu()
+        )
+        return
+
+    if not session:
+        bot.send_message(
+            chat_id,
+            "ℹ️ <b>No active build session.</b>\n\n"
+            "Choose <b>🟢 Create APK</b> to start a new build.",
+            reply_markup=kb_main_menu()
+        )
+        return
+
+    if action == "🟢 Build APK":
+        required = ["app_name", "package_name", "icon", "html"]
+
+        if not all(key in session for key in required):
+            bot.send_message(
+                chat_id,
+                "⚠️ <b>Some build information is missing.</b>",
+                reply_markup=kb_main_menu()
+            )
+            return
+
+        session["state"] = "building"
+        session["ui_message"] = bot.send_message(
+            chat_id,
+            progress(5, "Build") +
+            "\n⚙️ <b>Preparing APK build…</b>\n\n"
+            "Please wait.",
+            reply_markup=None
+        )
+
+        threading.Thread(
+            target=build_apk,
+            args=(chat_id,),
+            daemon=True
+        ).start()
+        return
+
+    if action == "✏️ Rename":
+        session["state"] = "app_name"
+        bot.send_message(
+            chat_id,
+            progress(0, "App name") +
+            "\n📛 <b>Send the new App Name</b>",
+            reply_markup=kb_cancel()
+        )
+        return
+
+    if action == "📦 Package":
+        session["state"] = "package_name"
+        bot.send_message(
+            chat_id,
+            progress(1, "Package name") +
+            "\n📦 <b>Send new Package Name</b>\n\n"
+            "Example:\n"
+            "<code>com.example.myapp</code>",
+            reply_markup=kb_cancel()
+        )
+        return
+
+    if action == "🔐 Permissions":
+        permissions = session.get("permissions", [])
+        bot.send_message(
+            chat_id,
+            permission_text(permissions),
+            reply_markup=kb_permission_info()
+        )
+        return
+
+    if action == "⬅️ Back to Review":
+        show_confirmation(chat_id)
+        return
 
 
 # =========================================================
@@ -1754,41 +1904,7 @@ def show_confirmation(
         "Everything looks ready. Build APK?"
     )
 
-    kb = types.InlineKeyboardMarkup(
-        row_width=2
-    )
-
-    kb.add(
-        types.InlineKeyboardButton(
-            "🔐 Permissions",
-            callback_data="permission:info"
-        )
-    )
-
-    kb.add(
-        types.InlineKeyboardButton(
-            "✏️ Rename",
-            callback_data="flow:rename"
-        ),
-        types.InlineKeyboardButton(
-            "✏️ Package",
-            callback_data="flow:package"
-        )
-    )
-
-    kb.add(
-        types.InlineKeyboardButton(
-            "✅ Build APK",
-            callback_data="flow:build"
-        )
-    )
-
-    kb.add(
-        types.InlineKeyboardButton(
-            "✖️ Cancel",
-            callback_data="flow:cancel"
-        )
-    )
+    kb = kb_confirm()
 
     if source:
 
