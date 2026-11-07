@@ -254,7 +254,7 @@ def kb_main_menu():
         [(SC("📦 Package Guide"), "primary"),
          (SC("🔐 Permission Guide"), "primary")],
         [(SC("ℹ️ About"), "primary"),
-         (SC("🛟 Support"), "success")],
+         (SC("💬 Support"), "success")],
     ], "Select an option…")
 
 
@@ -1039,7 +1039,7 @@ def cmd_newapk(message):
         "📦 Package Guide",
         "🔐 Permission Guide",
         "ℹ️ About",
-        "🛟 Support",
+        "💬 Support",
         "🔴 Cancel",
         "🟢 Build APK",
         "✏️ Rename",
@@ -1105,23 +1105,20 @@ def handle_reply_keyboard(message):
         bot.send_message(chat_id, ABOUT_TEXT, reply_markup=kb_main_menu())
         return
 
-    if action == "🛟 Support":
-        support = os.environ.get("SUPPORT_USERNAME", "").strip()
-        if support:
-            support_text = (
-                "<b>🛟 Support Center</b>\n"
-                "━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-                "Need help with APK building?\n\n"
-                f"👤 Support: <b>{escape(support)}</b>"
-            )
-        else:
-            support_text = (
-                "<b>🛟 Support Center</b>\n"
-                "━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-                "Need help with APK building?\n\n"
-                "Please contact the bot administrator."
-            )
-        bot.send_message(chat_id, support_text, reply_markup=kb_main_menu())
+    if action == "💬 Support":
+        support_text = (
+            "<b>💬 Support Center</b>\n"
+            "━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            "Need help with APK building?\n\n"
+            "👤 Support: <a href=\"https://t.me/DevCloudX\">@DevCloudX</a>\n\n"
+            "Tap the username above to contact support."
+        )
+        bot.send_message(
+            chat_id,
+            support_text,
+            reply_markup=kb_main_menu(),
+            disable_web_page_preview=True
+        )
         return
 
     # Flow actions ------------------------------------------------------
